@@ -2,6 +2,7 @@ package com.example.driverassistant;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -20,7 +21,8 @@ public class MainActivity extends AppCompatActivity {
         btnFaceRegonition.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // TODO: 8/3/21  
+                Intent intent = new Intent(MainActivity.this, FaceRecognitionCameraActivity.class);
+                startActivity(intent);
             }
         });
     }
