@@ -37,9 +37,65 @@ def name_generator_residual(expansion, stride, output, index):
     return "residual_block{}_e{}_s{}_c{}".format(index, expansion, stride, output)
 
 
+class TripletDistanceLayer(keras.layers.Layer):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, anchor, positive, negative):
+        pos_distance = tf.reduce_sum(tf.square(anchor - positive), -1)
+        neg_distance = tf.reduce_sum(tf.square(anchor - negative), -1)
+        return pos_distance, neg_distance
+
+
+class SiameseModel(keras.models.Model):
+    """The Siamese Network model with a custom training and testing loops.
+
+    Computes the triplet loss using the three embeddings produced by the
+    Siamese Network.
+
+    The triplet loss is defined as:
+        L(A, P, N) = max(‖f(A) - f(P)‖² - ‖f(A) - f(N)‖² + margin, 0)
+    """
+
+    def __init__(self, siamese_network, margin=0.5):
+        super(SiameseModel, self).__init__()
+        self.siamese_network = siamese_network
+        self.margin = margin
+        self.loss_tracker = keras.metrics.Mean(name='loss')
+
+    def call(self, inputs):
+        return self.siamese_network(inputs)
+
+    def train_step(self, data):
+        with tf.GradientTape() as tape:
+            loss = self._compute_loss(data)
+
+        gradients = tape.gradient(loss, self.siamese_network.trainable_weights)
+        self.optimizer.apply_gradients(
+            zip(gradients, self.siamese_network.trainable_weights)
+        )
+
+        self.loss_tracker.update_state(loss)
+        return {'loss', self.loss_tracker.result()}
+
+    def test_step(self, data):
+        loss = self._compute_loss(data)
+        self.loss_tracker.update_state(loss)
+        return {'loss', self.loss_tracker.result()}
+
+    def _compute_loss(self, data):
+        pos_distance, neg_distance = self.siamese_network(data)
+        return tf.maximum(pos_distance - neg_distance + self.margin, 0.0)
+
+    @property
+    def metrics(self):
+        return [self.loss_tracker]
+
+
 def get_facenet_model():
     layers = [
-        keras.layers.InputLayer(input_shape=[112, 112, 1]),
+        keras.layers.InputLayer(input_shape=[112, 112, 3]),
         keras.layers.Conv2D(filters=64, strides=2, kernel_size=3, padding='same', use_bias=False),
         keras.layers.BatchNormalization(),
         keras.layers.ReLU(),
@@ -71,6 +127,5 @@ def get_facenet_model():
 
     return keras.models.Sequential(layers)
 
-
-model = get_facenet_model()
-model.summary()
+# model = get_facenet_model()
+# model.summary()
