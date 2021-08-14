@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:weightSum="1"
+
+    tools:context=".FaceRecognitionCameraActivity">
+
+    <com.otaliastudios.cameraview.CameraView
+        android:id="@+id/camera_face_recognition"
+        android:keepScreenOn="true"
+        android:layout_width="match_parent"
+        app:cameraAudio="off"
+        app:cameraFrameProcessingMaxHeight="1000"
+        app:cameraFrameProcessingMaxWidth="1000"
+        app:cameraPreviewFrameRate="20"
+        android:layout_gravity="top"
+        android:layout_height="1000px">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="invisible"/>
+
+
+    </com.otaliastudios.cameraview.CameraView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:layout_gravity="bottom">
+        <TextView
+            android:id="@+id/txt_face_detected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Face"
+            android:textColor="@color/white"
+            android:layout_margin="10dp"/>
+    </LinearLayout>
+
+</LinearLayout>
