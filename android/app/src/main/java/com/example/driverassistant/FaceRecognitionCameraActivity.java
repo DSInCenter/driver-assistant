@@ -22,6 +22,12 @@ import com.otaliastudios.cameraview.frame.Frame;
 import com.otaliastudios.cameraview.frame.FrameProcessor;
 import com.otaliastudios.cameraview.size.Size;
 
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public class FaceRecognitionCameraActivity extends AppCompatActivity {
@@ -37,7 +43,6 @@ public class FaceRecognitionCameraActivity extends AppCompatActivity {
         camera.setLifecycleOwner(this);
         FaceDetector detector = setupDetector();
         txtDetected = findViewById(R.id.txt_face_detected);
-
         camera.addFrameProcessor(new FrameProcessor() {
             @Override
             public void process(@NonNull Frame frame) {
@@ -48,15 +53,16 @@ public class FaceRecognitionCameraActivity extends AppCompatActivity {
                 int viewRotation = frame.getRotationToView();
                 InputImage inputImage = null;
                 if (frame.getDataClass() == byte[].class) {
-                    byte[] data = frame.getData();
+                    final byte[] data = frame.getData();
                     inputImage = InputImage.fromByteArray(data, size.getWidth(), size.getHeight(),
                             userRotation, format);
 
                 } else if (frame.getDataClass() == Image.class) {
-                    Image data = frame.getData();
+                    final Image data = frame.getData();
                     inputImage = InputImage.fromMediaImage(data, userRotation);
                 }
-                
+//                System.out.println(inputImage.getByteBuffer());
+                InputImage finalInputImage = inputImage;
                 Task<List<Face>> result = detector.process(inputImage)
                         .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
                             @Override
@@ -64,6 +70,27 @@ public class FaceRecognitionCameraActivity extends AppCompatActivity {
                                 // TODO: 8/3/21
                                 for (Face face : faces) {
                                     RectF box = new RectF(face.getBoundingBox());
+                                    byte[] cropped = cropByteArray(finalInputImage.getByteBuffer().array(), finalInputImage.getWidth(),face.getBoundingBox());
+//                                    Bitmap bitmapImage = BitmapFactory.decodeByteArray(cropped, 0, cropped.length);
+//                                    Bitmap mutableBitmapImage = Bitmap.createScaledBitmap(bitmapImage, 112, 112, false);
+//                                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//                                    mutableBitmapImage.compress(Bitmap)
+                                    try {
+                                        Mat mat = Imgcodecs.imdecode(new MatOfByte(cropped), Imgcodecs.IMREAD_UNCHANGED);
+                                        Mat resized = new Mat();
+                                        org.opencv.core.Size sz = new org.opencv.core.Size(112, 112);
+                                        Imgproc.resize(mat, resized, sz);
+                                        txtDetected.setText(String.valueOf(time));
+                                    } catch (Exception e){
+                                        e.printStackTrace();
+                                    }
+
+
+
+
+
+
+
 
                                 }
                             }
@@ -76,6 +103,45 @@ public class FaceRecognitionCameraActivity extends AppCompatActivity {
                 
             }
         });
+    }
+
+    private byte[] croppedNV21(Image mediaImage, Rect cropRect){
+        ByteBuffer yBuffer = mediaImage.getPlanes()[0].getBuffer();
+        ByteBuffer vuBuffer = mediaImage.getPlanes()[2].getBuffer();
+
+        int ySize = yBuffer.remaining();
+        int vuSize = vuBuffer.remaining();
+
+        byte[] nv21 = new byte[ySize + vuSize];
+        yBuffer.get(nv21, 0, ySize);
+        vuBuffer.get(nv21, ySize, vuSize);
+
+        return cropByteArray(nv21, mediaImage.getWidth(), cropRect);
+
+    }
+//
+    private byte[] cropByteArray(byte[] array, int imageWidth, Rect cropRect){
+        byte[] croppedArray = new byte[(cropRect.width() * cropRect.height())];
+        int i = 0;
+        for (int index = 0; i < array.length; i++) {
+            double x = index % imageWidth;
+            double y = index / imageWidth;
+                    if (cropRect.left <= x && x < cropRect.right && cropRect.top <= y && y < cropRect.bottom) {
+                        croppedArray[i] = array[index];
+                        i++;
+                    }
+        }
+//        array.forEachIndexed { index, byte ->
+//            val x = index % imageWidth
+//            val y = index / imageWidth
+//
+//            if (cropRect.left <= x && x < cropRect.right && cropRect.top <= y && y < cropRect.bottom) {
+//                croppedArray[i] = byte
+//                i++
+//            }
+//        }
+
+        return croppedArray;
     }
 
     private FaceDetector setupDetector() {
